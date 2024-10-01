@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -32,8 +33,7 @@ func createXlsxFile(input string, output string, shouldSetFilter bool) {
 	book := excelize.NewFile()
 	defer book.Close()
 	sheetName := "Sheet1"
-	sheet, _ := book.NewStreamWriter(sheetName)
-	defer sheet.Flush()
+	book.SetDefaultFont("Meiryo UI")
 
 	row := 0
 	headerCount := 0
@@ -42,7 +42,7 @@ func createXlsxFile(input string, output string, shouldSetFilter bool) {
 		row++
 		line := scanner.Text()
 		texts := strings.Split(line, "\t")
-		setRow(sheet, row, texts)
+		setRow(book, sheetName, row, texts)
 		if headerCount == 0 {
 			headerCount = len(texts)
 		}
@@ -59,13 +59,21 @@ func createXlsxFile(input string, output string, shouldSetFilter bool) {
 	}
 }
 
-func setRow(sheet *excelize.StreamWriter, row int, texts []string) {
+func setRow(book *excelize.File, sheet string, row int, texts []string) {
 	startCell, _ := excelize.CoordinatesToCellName(1, row)
 	cellTexts := make([]interface{}, len(texts))
 	for i := range texts {
-		cellTexts[i] = texts[i]
+		text := texts[1]
+		if number, err := strconv.Atoi(text); err == nil {
+			cellTexts[i] = number
+		} else {
+			cellTexts[i] = text
+		}
 	}
-	sheet.SetRow(startCell, cellTexts)
+	err := book.SetSheetRow(sheet, startCell, &cellTexts)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func Execute() {
