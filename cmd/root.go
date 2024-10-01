@@ -79,4 +79,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP("input", "i", "", "")
 	rootCmd.PersistentFlags().StringP("output", "o", "", "")
 	rootCmd.PersistentFlags().BoolP("filter", "f", false, "")
+
+	rootCmd.MarkPersistentFlagRequired("input")
+	rootCmd.MarkPersistentFlagRequired("output")
 }
