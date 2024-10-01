@@ -21,12 +21,13 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		input, _ := cmd.PersistentFlags().GetString("input")
 		output, _ := cmd.PersistentFlags().GetString("output")
+		rowWidth, _ := cmd.PersistentFlags().GetString("row-width")
 		shouldSetFilter, _ := cmd.PersistentFlags().GetBool("filter")
-		createXlsxFile(input, output, shouldSetFilter)
+		createXlsxFile(input, output, rowWidth, shouldSetFilter)
 	},
 }
 
-func createXlsxFile(input string, output string, shouldSetFilter bool) {
+func createXlsxFile(input string, output string, rowWidth string, shouldSetFilter bool) {
 	tsv, _ := os.Open(input)
 	defer tsv.Close()
 
@@ -34,6 +35,14 @@ func createXlsxFile(input string, output string, shouldSetFilter bool) {
 	defer book.Close()
 	sheetName := "Sheet1"
 	book.SetDefaultFont("Meiryo UI")
+	if rowWidth != "" {
+		for _, x := range strings.Split(rowWidth, ",") {
+			settings := strings.Split(x, ":")
+			column := settings[0]
+			width, _ := strconv.Atoi(settings[1])
+			book.SetColWidth(sheetName, column, column, float64(width))
+		}
+	}
 
 	row := 0
 	headerCount := 0
@@ -87,6 +96,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP("input", "i", "", "")
 	rootCmd.PersistentFlags().StringP("output", "o", "", "")
 	rootCmd.PersistentFlags().BoolP("filter", "f", false, "")
+	rootCmd.PersistentFlags().StringP("row-width", "r", "", "")
 
 	rootCmd.MarkPersistentFlagRequired("input")
 	rootCmd.MarkPersistentFlagRequired("output")
