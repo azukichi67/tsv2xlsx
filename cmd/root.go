@@ -63,7 +63,7 @@ func setRow(book *excelize.File, sheet string, row int, texts []string) {
 	startCell, _ := excelize.CoordinatesToCellName(1, row)
 	cellTexts := make([]interface{}, len(texts))
 	for i := range texts {
-		text := texts[1]
+		text := texts[i]
 		if number, err := strconv.Atoi(text); err == nil {
 			cellTexts[i] = number
 		} else {
