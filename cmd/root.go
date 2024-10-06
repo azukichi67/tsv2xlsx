@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/xuri/excelize/v2"
 )
@@ -18,16 +19,22 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "tsv2xlsx",
 	Short: "convert tsv to xlsx",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		input, _ := cmd.PersistentFlags().GetString("input")
 		output, _ := cmd.PersistentFlags().GetString("output")
 		columnWidth, _ := cmd.PersistentFlags().GetString("column-width")
 		shouldSetFilter, _ := cmd.PersistentFlags().GetBool("filter")
-		createXlsxFile(input, output, columnWidth, shouldSetFilter)
+
+		err := createXlsxFile(input, output, columnWidth, shouldSetFilter)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	},
 }
 
-func createXlsxFile(input string, output string, columnWidth string, shouldSetFilter bool) {
+func createXlsxFile(input string, output string, columnWidth string, shouldSetFilter bool) error {
 	tsv, _ := os.Open(input)
 	defer tsv.Close()
 
@@ -35,11 +42,20 @@ func createXlsxFile(input string, output string, columnWidth string, shouldSetFi
 	defer book.Close()
 	sheetName := "Sheet1"
 	book.SetDefaultFont("Meiryo UI")
+
 	if columnWidth != "" {
 		for _, x := range strings.Split(columnWidth, ",") {
+
 			settings := strings.Split(x, ":")
+			if len(settings) != 2 {
+				return fmt.Errorf("[%s] is invalid format", x)
+			}
+
 			column := settings[0]
-			width, _ := strconv.Atoi(settings[1])
+			width, err := strconv.Atoi(settings[1])
+			if err != nil {
+				return fmt.Errorf("[%s] width is should be number", x)
+			}
 			book.SetColWidth(sheetName, column, column, float64(width))
 		}
 	}
@@ -51,7 +67,10 @@ func createXlsxFile(input string, output string, columnWidth string, shouldSetFi
 		row++
 		line := scanner.Text()
 		texts := strings.Split(line, "\t")
-		setRow(book, sheetName, row, texts)
+		err := setRow(book, sheetName, row, texts)
+		if err != nil {
+			return fmt.Errorf("failed to set text to row. line=%d", row)
+		}
 		if headerCount == 0 {
 			headerCount = len(texts)
 		}
@@ -64,11 +83,13 @@ func createXlsxFile(input string, output string, columnWidth string, shouldSetFi
 
 	err := book.SaveAs(output)
 	if err != nil {
-		fmt.Println(err)
+		return errors.Wrap(err, "failed to save a file")
 	}
+
+	return nil
 }
 
-func setRow(book *excelize.File, sheet string, row int, texts []string) {
+func setRow(book *excelize.File, sheet string, row int, texts []string) error {
 	startCell, _ := excelize.CoordinatesToCellName(1, row)
 	cellTexts := make([]interface{}, len(texts))
 	for i := range texts {
@@ -81,8 +102,9 @@ func setRow(book *excelize.File, sheet string, row int, texts []string) {
 	}
 	err := book.SetSheetRow(sheet, startCell, &cellTexts)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
+	return nil
 }
 
 func Execute() {
@@ -93,10 +115,10 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("input", "i", "", "")
-	rootCmd.PersistentFlags().StringP("output", "o", "", "")
-	rootCmd.PersistentFlags().BoolP("filter", "f", false, "")
-	rootCmd.PersistentFlags().StringP("column-width", "c", "", "")
+	rootCmd.PersistentFlags().StringP("input", "i", "", "input tsv file path")
+	rootCmd.PersistentFlags().StringP("output", "o", "", "output xlsx file path")
+	rootCmd.PersistentFlags().BoolP("filter", "f", false, "set filter to header")
+	rootCmd.PersistentFlags().StringP("column-width", "c", "", "change columns width (e.g. A:50,B100)")
 
 	rootCmd.MarkPersistentFlagRequired("input")
 	rootCmd.MarkPersistentFlagRequired("output")
